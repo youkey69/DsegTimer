@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>DSEG デジタル数字 PNG ジェネレーター</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>デジタル数字ジェネレーター</title>
   <style>
     * {
       box-sizing: border-box;
@@ -15,7 +16,8 @@
       background: #111;
       color: #f5f5f5;
       display: flex;
-      justify-content: center;
+      flex-direction: column;   /* ← コンテナ＋フッターを縦並びに */
+      align-items: center;      /* ← 中央寄せ */
     }
 
     .container {
@@ -25,6 +27,20 @@
       border-radius: 16px;
       padding: 24px 24px 32px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    }
+
+    /* 枠外フッター */
+    .footer-note {
+      max-width: 960px;
+      width: 100%;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #ddd;
+    }
+
+    .footer-note a {
+      color: #ffde59;
+      text-decoration: underline;
     }
 
     h1 {
@@ -42,19 +58,29 @@
       flex-wrap: wrap;
     }
 
-    label {
-      white-space: nowrap;
+    .input-row > label {
       font-size: 14px;
+      white-space: nowrap;
+    }
+
+    /* 入力欄＋コロン用ラッパー */
+    .input-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     input[type="text"] {
-      flex: 1 1 200px;
+      flex: 1 1 auto;
       padding: 8px 10px;
       font-size: 16px;
       border-radius: 8px;
       border: 1px solid #555;
       background: #111;
       color: #f5f5f5;
+      min-width: 0;
     }
 
     button {
@@ -86,8 +112,8 @@
       align-items: center;
       gap: 6px;
       font-size: 13px;
-      margin-left: 8px;
       color: #ddd;
+      white-space: nowrap;
     }
 
     .image-area {
@@ -114,12 +140,25 @@
       justify-content: space-between;
       gap: 12px;
       margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    #saveButton,
+    #copyButton {
+      min-width: 120px;
     }
 
     #message {
       font-size: 12px;
       color: #ffde59;
       min-height: 1.2em;
+      flex: 1 1 auto;
+      text-align: right;
     }
 
     /* ===== スマホ向けレスポンシブ調整 ===== */
@@ -140,23 +179,26 @@
       .input-row {
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
       }
 
-      /* ラベルを上、テキストボックスをその下に */
       .input-row > label {
+        flex-basis: 100%;
         font-size: 14px;
       }
 
-      input[type="text"] {
+      .input-main {
+        width: 100%;
+      }
+
+      .input-main input[type="text"] {
         font-size: 20px;
-        padding: 10px 14px;
+        padding: 4px 10px;
+        height: 40px !important;
+        max-height: 40px;
       }
 
       .colon-group {
-        margin-left: 0;
         font-size: 16px;
-        justify-content: flex-start;
       }
 
       .colon-group input[type="radio"] {
@@ -164,37 +206,53 @@
         margin-right: 2px;
       }
 
-      button {
+      #generateButton {
+        flex-basis: 100%;
         font-size: 18px;
         padding: 10px 16px;
-      }
-
-      #generateButton,
-      #copyButton {
-        width: 100%;
       }
 
       .bottom-row {
         flex-direction: column;
         align-items: stretch;
       }
+
+      .action-buttons {
+        width: 100%;
+      }
+
+      #saveButton,
+      #copyButton {
+        flex: 1;
+        width: 50%;
+        font-size: 18px;
+        padding: 10px 16px;
+      }
+
+      #message {
+        text-align: left;
+        margin-top: 4px;
+      }
     }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>DSEG デジタル数字 PNG ジェネレーター</h1>
+  <h1>デジタル数字ジェネレーター</h1>
 
   <!-- 入力エリア -->
   <div class="input-row">
     <label for="numberInput">数字入力</label>
-    <input id="numberInput" type="text" maxlength="6" placeholder="0～9の最大6桁">
 
-    <!-- コロン選択（デフォルト＝あり） -->
-    <div class="colon-group">
-      <span>コロン</span>
-      <label><input type="radio" name="colonMode" value="on" checked> あり</label>
-      <label><input type="radio" name="colonMode" value="off"> なし</label>
+    <!-- テキストボックス＋コロン（1行にまとめる） -->
+    <div class="input-main">
+      <input id="numberInput" type="text" maxlength="6" placeholder="0～9の最大6桁">
+
+      <div class="colon-group">
+        <span>コロン</span>
+        <label><input type="radio" name="colonMode" value="on" checked> あり</label>
+        <label><input type="radio" name="colonMode" value="off"> なし</label>
+      </div>
     </div>
 
     <button id="generateButton">生成</button>
@@ -202,20 +260,29 @@
 
   <!-- 画像表示領域（1段） -->
   <div class="image-area">
-    <div class="image-area-title">画像表示領域</div>
+    <div class="image-area-title">画像</div>
     <canvas id="timerCanvas" width="900" height="260"></canvas>
   </div>
 
   <div class="bottom-row">
-    <button id="copyButton">コピー</button>
+    <div class="action-buttons">
+      <button id="saveButton">保存</button>
+      <button id="copyButton">コピー</button>
+    </div>
     <div id="message"></div>
   </div>
+</div>
+
+<!-- 枠外フッター -->
+<div class="footer-note">
+  ご意見・ご要望は <a href="https://x.com/you_key69" target="_blank" rel="noopener noreferrer">Xまでご連絡ください</a> 。
 </div>
 
 <script>
   const inputEl = document.getElementById("numberInput");
   const generateBtn = document.getElementById("generateButton");
   const copyBtn = document.getElementById("copyButton");
+  const saveBtn = document.getElementById("saveButton");
   const canvas = document.getElementById("timerCanvas");
   const ctx = canvas.getContext("2d");
   const msgEl = document.getElementById("message");
@@ -251,7 +318,7 @@
   function drawDigits(input) {
     const width = canvas.width;
     const height = canvas.height;
-    const showColon = getColonMode();   // ここでコロンON/OFFを取得
+    const showColon = getColonMode();
 
     ctx.clearRect(0, 0, width, height);
 
@@ -302,14 +369,13 @@
     const firstDigitX = innerX + 20; // 1桁目の左端
 
     // ▼▼ セグメント形状：細めに変更 ▼▼
-    const t = digitH * 0.09;          // セグメントの太さ（細くした）
+    const t = digitH * 0.09;          // セグメントの太さ
     const segColorOn = "#d2ff5b";     // 点灯色（黄緑）
     const segColorOff = "#222";       // 消灯色
     const hGap = t * 1.2;             // 水平方向の余白
     const vGap = t * 1.0;             // 垂直方向の余白
     const diag = t * 0.8;             // 斜めカットの量
     const extraShort = t * 1.0;       // 横棒だけさらに短くする量
-    // ▲▲ ここまで調整ポイント ▲▲
 
     for (let i = 0; i < MAX_DIGITS; i++) {
       const d = display[i];
@@ -501,16 +567,56 @@
     }
   }
 
+  function saveImage() {
+    try {
+      canvas.toBlob(blob => {
+        if (!blob) {
+          showMessage("画像の生成に失敗しました。", true);
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        const now = new Date();
+        const ts =
+          now.getFullYear().toString() +
+          String(now.getMonth() + 1).padStart(2, "0") +
+          String(now.getDate()).padStart(2, "0") + "_" +
+          String(now.getHours()).padStart(2, "0") +
+          String(now.getMinutes()).padStart(2, "0") +
+          String(now.getSeconds()).padStart(2, "0");
+
+        a.href = url;
+        a.download = `dseg_timer_${ts}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        showMessage("画像をダウンロードしました。", false);
+      }, "image/png");
+    } catch (err) {
+      console.error(err);
+      showMessage("保存に失敗しました。ブラウザ設定をご確認ください。", true);
+    }
+  }
+
   // イベント
   generateBtn.addEventListener("click", generate);
   copyBtn.addEventListener("click", copyImageToClipboard);
+  saveBtn.addEventListener("click", saveImage);
+
   inputEl.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       generate();
     }
   });
+
   document.querySelectorAll('input[name="colonMode"]').forEach(r => {
-    r.addEventListener("change", generate);
+    r.addEventListener("change", () => {
+      const value = inputEl.value.trim() || "000000";
+      drawDigits(value);
+    });
   });
 
   // 初期表示：テキストボックスは空、表示だけ 000000 を描画
