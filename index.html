@@ -246,7 +246,13 @@
 
     <!-- テキストボックス＋コロン（1行にまとめる） -->
     <div class="input-main">
-      <input id="numberInput" type="text" maxlength="6" placeholder="0～9の最大6桁">
+      <input
+		  id="numberInput"
+		  type="tel"
+		  inputmode="numeric"
+		  pattern="\d*"
+		  maxlength="6"
+		  placeholder="0～9の最大6桁">
 
       <div class="colon-group">
         <span>コロン</span>
@@ -516,7 +522,7 @@
 
       // 2桁目と3桁目の間
       const digit2X = firstDigitX + 1 * (digitW + gap);
-      const colon1X = digit2X + digitW + gap / 2;
+      const colon1X = digit2X + digitW + gap / 2;	
 
       // 4桁目と5桁目の間
       const digit4X = firstDigitX + 3 * (digitW + gap);
@@ -543,7 +549,7 @@
     }
 
     drawDigits(value);
-    showMessage("画像を生成しました。キャンバスを右クリックで画像保存もできます。");
+    showMessage("画像を生成しました。");
   }
 
   async function copyImageToClipboard() {
