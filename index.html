@@ -81,6 +81,15 @@
       box-shadow: none;
     }
 
+    .colon-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      margin-left: 8px;
+      color: #ddd;
+    }
+
     .image-area {
       border-top: 1px dashed #444;
       margin-top: 16px;
@@ -129,6 +138,14 @@
   <div class="input-row">
     <label for="numberInput">数字入力</label>
     <input id="numberInput" type="text" maxlength="6" placeholder="0～9の最大6桁">
+
+    <!-- コロン選択（デフォルト＝あり） -->
+    <div class="colon-group">
+      <span>コロン</span>
+      <label><input type="radio" name="colonMode" value="on" checked> あり</label>
+      <label><input type="radio" name="colonMode" value="off"> なし</label>
+    </div>
+
     <button id="generateButton">生成</button>
   </div>
 
@@ -173,10 +190,17 @@
     msgEl.style.color = isError ? "#ff7777" : "#ffde59";
   }
 
+  // コロン表示モード取得（true=表示）
+  function getColonMode() {
+    const checked = document.querySelector('input[name="colonMode"]:checked');
+    return !checked || checked.value === "on";
+  }
+
   // デジタル数字をキャンバスへ描画
   function drawDigits(input) {
     const width = canvas.width;
     const height = canvas.height;
+    const showColon = getColonMode();   // ここでコロンON/OFFを取得
 
     ctx.clearRect(0, 0, width, height);
 
@@ -224,6 +248,7 @@
     const digitW = (innerW - gap * (MAX_DIGITS - 1) - 40) / MAX_DIGITS;
     const digitH = innerH - 40;
     const baseY = innerY + (innerH - digitH) / 2;
+    const firstDigitX = innerX + 20; // 1桁目の左端
 
     // ▼▼ セグメント形状：細めに変更 ▼▼
     const t = digitH * 0.09;          // セグメントの太さ（細くした）
@@ -232,12 +257,12 @@
     const hGap = t * 1.2;             // 水平方向の余白
     const vGap = t * 1.0;             // 垂直方向の余白
     const diag = t * 0.8;             // 斜めカットの量
-    const extraShort = t * 1.0;  // 横棒だけさらに短くする量
+    const extraShort = t * 1.0;       // 横棒だけさらに短くする量
     // ▲▲ ここまで調整ポイント ▲▲
 
     for (let i = 0; i < MAX_DIGITS; i++) {
       const d = display[i];
-      const x = innerX + 20 + i * (digitW + gap);
+      const x = firstDigitX + i * (digitW + gap);
       const y = baseY;
 
       // 数字1桁分の背景（角丸の黒）
@@ -363,6 +388,33 @@
         drawSegment(s, pattern[s] === 1);
       }
     }
+
+    // ===== コロン描画（HH:MM:SS 用） =====
+    if (showColon) {
+      const colonRadius = t * 0.55;
+      const upperY = baseY + digitH * 0.50;
+      const lowerY = baseY + digitH * 0.86;
+
+      ctx.fillStyle = segColorOn;
+
+      // 2桁目と3桁目の間
+      const digit2X = firstDigitX + 1 * (digitW + gap);
+      const colon1X = digit2X + digitW + gap / 2;
+
+      // 4桁目と5桁目の間
+      const digit4X = firstDigitX + 3 * (digitW + gap);
+      const colon2X = digit4X + digitW + gap / 2;
+
+      [colon1X, colon2X].forEach(cx => {
+        ctx.beginPath();
+        ctx.arc(cx, upperY, colonRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(cx, lowerY, colonRadius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
   }
 
   function generate() {
@@ -405,6 +457,9 @@
     if (e.key === "Enter") {
       generate();
     }
+  });
+  document.querySelectorAll('input[name="colonMode"]').forEach(r => {
+    r.addEventListener("change", generate);
   });
 
   // 初期表示
