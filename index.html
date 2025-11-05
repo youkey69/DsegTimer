@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>DSEG デジタル数字 PNG ジェネレーター</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #111;
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      max-width: 960px;
+      width: 100%;
+      background: #1e1e1e;
+      border-radius: 16px;
+      padding: 24px 24px 32px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    input[type="text"] {
+      flex: 1 1 200px;
+      padding: 8px 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #111;
+      color: #f5f5f5;
+    }
+
+    button {
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      background: #ffb300;
+      color: #111;
+      font-weight: 600;
+      transition: transform 0.05s ease, box-shadow 0.1s ease, background 0.1s ease;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: #ffc933;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    .image-area {
+      border-top: 1px dashed #444;
+      margin-top: 16px;
+      padding-top: 12px;
+    }
+
+    .image-area-title {
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 4px;
+    }
+
+    #timerCanvas {
+      max-width: 100%;
+      background: #000;
+      border-radius: 12px;
+    }
+
+    .bottom-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    #message {
+      font-size: 12px;
+      color: #ffde59;
+      min-height: 1.2em;
+    }
+
+    @media (max-width: 600px) {
+      .bottom-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>DSEG デジタル数字 PNG ジェネレーター</h1>
+
+  <!-- 入力エリア -->
+  <div class="input-row">
+    <label for="numberInput">数字入力</label>
+    <input id="numberInput" type="text" maxlength="6" placeholder="0～9の最大6桁">
+    <button id="generateButton">生成</button>
+  </div>
+
+  <!-- 画像表示領域（1段） -->
+  <div class="image-area">
+    <div class="image-area-title">画像表示領域</div>
+    <canvas id="timerCanvas" width="900" height="260"></canvas>
+  </div>
+
+  <div class="bottom-row">
+    <button id="copyButton">コピー</button>
+    <div id="message"></div>
+  </div>
+</div>
+
+<script>
+  const inputEl = document.getElementById("numberInput");
+  const generateBtn = document.getElementById("generateButton");
+  const copyBtn = document.getElementById("copyButton");
+  const canvas = document.getElementById("timerCanvas");
+  const ctx = canvas.getContext("2d");
+  const msgEl = document.getElementById("message");
+
+  const MAX_DIGITS = 6;
+
+  // 7セグメントの点灯パターン [A,B,C,D,E,F,G]
+  const SEGMENTS = {
+    "0": [1,1,1,1,1,1,0],
+    "1": [0,1,1,0,0,0,0],
+    "2": [1,1,0,1,1,0,1],
+    "3": [1,1,1,1,0,0,1],
+    "4": [0,1,1,0,0,1,1],
+    "5": [1,0,1,1,0,1,1],
+    "6": [1,0,1,1,1,1,1],
+    "7": [1,1,1,0,0,0,0],
+    "8": [1,1,1,1,1,1,1],
+    "9": [1,1,1,1,0,1,1]
+  };
+
+  function showMessage(text, isError = false) {
+    msgEl.textContent = text;
+    msgEl.style.color = isError ? "#ff7777" : "#ffde59";
+  }
+
+  // デジタル数字をキャンバスへ描画
+  function drawDigits(input) {
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    // 外枠（イエロー）
+    const frameRadius = 24;
+    const framePadding = 8;
+
+    function roundedRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    ctx.fillStyle = "#ffc300";
+    roundedRect(framePadding, framePadding,
+                width - framePadding * 2,
+                height - framePadding * 2,
+                frameRadius);
+    ctx.fill();
+
+    // 内側黒背景
+    const innerPad = 14;
+    const innerX = framePadding + innerPad;
+    const innerY = framePadding + innerPad;
+    const innerW = width - (framePadding + innerPad) * 2;
+    const innerH = height - (framePadding + innerPad) * 2;
+
+    ctx.fillStyle = "#000000";
+    roundedRect(innerX, innerY, innerW, innerH, 16);
+    ctx.fill();
+
+    // 6桁固定の位置を用意し、右寄せで表示
+    const digits = input.split("");
+    const display = Array(MAX_DIGITS - digits.length).fill(null).concat(digits);
+
+    const gap = 14;
+    const digitW = (innerW - gap * (MAX_DIGITS - 1) - 40) / MAX_DIGITS;
+    const digitH = innerH - 40;
+    const baseY = innerY + (innerH - digitH) / 2;
+
+    // ▼▼ セグメント形状：細めに変更 ▼▼
+    const t = digitH * 0.09;          // セグメントの太さ（細くした）
+    const segColorOn = "#d2ff5b";     // 点灯色（黄緑）
+    const segColorOff = "#222";       // 消灯色
+    const hGap = t * 1.2;             // 水平方向の余白
+    const vGap = t * 1.0;             // 垂直方向の余白
+    const diag = t * 0.8;             // 斜めカットの量
+    const extraShort = t * 1.0;  // 横棒だけさらに短くする量
+    // ▲▲ ここまで調整ポイント ▲▲
+
+    for (let i = 0; i < MAX_DIGITS; i++) {
+      const d = display[i];
+      const x = innerX + 20 + i * (digitW + gap);
+      const y = baseY;
+
+      // 数字1桁分の背景（角丸の黒）
+      ctx.fillStyle = "#000000";
+      roundedRect(x - 6, y - 6, digitW + 12, digitH + 12, 10);
+      ctx.fill();
+
+      if (d === null) continue;
+      const pattern = SEGMENTS[d];
+
+      function drawSegment(index, on) {
+        ctx.fillStyle = on ? segColorOn : segColorOff;
+        ctx.beginPath();
+
+        const halfH = digitH / 2;
+
+        switch (index) {
+          // A: 上（横）
+          case 0: {
+            const sx = x + hGap + extraShort;
+            const sy = y + vGap;
+            const ex = x + digitW - hGap - extraShort;
+            const by = sy + t;
+            ctx.moveTo(sx + diag, sy);
+            ctx.lineTo(ex - diag, sy);
+            ctx.lineTo(ex, sy + t / 2);
+            ctx.lineTo(ex - diag, by);
+            ctx.lineTo(sx + diag, by);
+            ctx.lineTo(sx, sy + t / 2);
+            break;
+          }
+          // B: 右上（縦）
+          case 1: {
+            const sx = x + digitW - hGap - t;
+            const sy = y + vGap + t / 2;
+            const ey = y + halfH - vGap / 2;
+            const ex = sx + t;
+            ctx.moveTo(ex, sy + diag);
+            ctx.lineTo(ex, ey - diag);
+            ctx.lineTo(ex - t / 2, ey);
+            ctx.lineTo(sx, ey - diag);
+            ctx.lineTo(sx, sy + diag);
+            ctx.lineTo(ex - t / 2, sy);
+            break;
+          }
+          // C: 右下（縦）
+          case 2: {
+            const sx = x + digitW - hGap - t;
+            const sy = y + halfH + vGap / 2;
+            const ey = y + digitH - vGap - t / 2;
+            const ex = sx + t;
+            ctx.moveTo(ex, sy + diag);
+            ctx.lineTo(ex, ey - diag);
+            ctx.lineTo(ex - t / 2, ey);
+            ctx.lineTo(sx, ey - diag);
+            ctx.lineTo(sx, sy + diag);
+            ctx.lineTo(ex - t / 2, sy);
+            break;
+          }
+          // D: 下（横）
+          case 3: {
+            const sy = y + digitH - vGap - t;
+            const sx = x + hGap + extraShort;
+            const ex = x + digitW - hGap - extraShort;
+            const by = sy + t;
+            ctx.moveTo(sx + diag, sy);
+            ctx.lineTo(ex - diag, sy);
+            ctx.lineTo(ex, sy + t / 2);
+            ctx.lineTo(ex - diag, by);
+            ctx.lineTo(sx + diag, by);
+            ctx.lineTo(sx, sy + t / 2);
+            break;
+          }
+          // E: 左下（縦）
+          case 4: {
+            const sx = x + hGap;
+            const sy = y + halfH + vGap / 2;
+            const ey = y + digitH - vGap - t / 2;
+            const ex = sx + t;
+            ctx.moveTo(ex, sy + diag);
+            ctx.lineTo(ex, ey - diag);
+            ctx.lineTo(ex - t / 2, ey);
+            ctx.lineTo(sx, ey - diag);
+            ctx.lineTo(sx, sy + diag);
+            ctx.lineTo(ex - t / 2, sy);
+            break;
+          }
+          // F: 左上（縦）
+          case 5: {
+            const sx = x + hGap;
+            const sy = y + vGap + t / 2;
+            const ey = y + halfH - vGap / 2;
+            const ex = sx + t;
+            ctx.moveTo(ex, sy + diag);
+            ctx.lineTo(ex, ey - diag);
+            ctx.lineTo(ex - t / 2, ey);
+            ctx.lineTo(sx, ey - diag);
+            ctx.lineTo(sx, sy + diag);
+            ctx.lineTo(ex - t / 2, sy);
+            break;
+          }
+          // G: 中央（横）
+          case 6: {
+            const sy = y + halfH - t / 2;
+            const sx = x + hGap + extraShort;
+            const ex = x + digitW - hGap - extraShort;
+            const by = sy + t;
+            ctx.moveTo(sx + diag, sy);
+            ctx.lineTo(ex - diag, sy);
+            ctx.lineTo(ex, sy + t / 2);
+            ctx.lineTo(ex - diag, by);
+            ctx.lineTo(sx + diag, by);
+            ctx.lineTo(sx, sy + t / 2);
+            break;
+          }
+        }
+
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      for (let s = 0; s < 7; s++) {
+        drawSegment(s, pattern[s] === 1);
+      }
+    }
+  }
+
+  function generate() {
+    const value = inputEl.value.trim();
+
+    if (!/^\d{1,6}$/.test(value)) {
+      showMessage("0～9の数字を1～6桁で入力してください。", true);
+      return;
+    }
+
+    drawDigits(value);
+    showMessage("画像を生成しました。キャンバスを右クリックで画像保存もできます。");
+  }
+
+  async function copyImageToClipboard() {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      showMessage("このブラウザは画像のクリップボードコピーに対応していません。", true);
+      return;
+    }
+
+    try {
+      await new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), "image/png");
+      }).then(async blob => {
+        const item = new ClipboardItem({ "image/png": blob });
+        await navigator.clipboard.write([item]);
+      });
+
+      showMessage("画像をクリップボードにコピーしました。", false);
+    } catch (err) {
+      console.error(err);
+      showMessage("コピーに失敗しました。HTTPS環境または対応ブラウザでお試しください。", true);
+    }
+  }
+
+  // イベント
+  generateBtn.addEventListener("click", generate);
+  copyBtn.addEventListener("click", copyImageToClipboard);
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      generate();
+    }
+  });
+
+  // 初期表示
+  inputEl.value = "000000";
+  generate();
+</script>
+</body>
+</html>
